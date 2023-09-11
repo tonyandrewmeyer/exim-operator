@@ -16,7 +16,7 @@ class EximCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.framework.observe(self.on["some_container"].pebble_ready, self._on_pebble_ready)
+        self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
