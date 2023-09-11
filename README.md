@@ -8,18 +8,18 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# tmp
+# exim-operator
 
-Charmhub package name: operator-template
-More information: https://charmhub.io/tmp
+Charmhub package name: exim-operator
+More information: https://charmhub.io/exim-operator
 
-Describe your charm in one or two sentences.
+An opinationed install of the [Exim](https://exim.org) mail transfer agent, for handling both incoming (delivery) and outgoing (submission) SMTP traffic.
 
 ## Other resources
 
 <!-- If your charm is documented somewhere else other than Charmhub, provide a link separately. -->
 
-- [Read more](https://example.com)
+- [Read more](https://github.com/tonyandrewmeyer/exim-operator)
 
 - [Contributing](CONTRIBUTING.md) <!-- or link to other contribution documentation -->
 

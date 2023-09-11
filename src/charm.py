@@ -11,7 +11,7 @@ import ops
 logger = logging.getLogger(__name__)
 
 
-class TmpCharm(ops.CharmBase):
+class EximCharm(ops.CharmBase):
     """Charm the application."""
 
     def __init__(self, *args):
@@ -24,4 +24,4 @@ class TmpCharm(ops.CharmBase):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    ops.main(TmpCharm)  # type: ignore
+    ops.main(EximCharm)  # type: ignore
