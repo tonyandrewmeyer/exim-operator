@@ -106,7 +106,8 @@ class EximCharm(ops.CharmBase):
             "CFILEMODE='644'\n"
             "dc_use_split_config='false'\n"
             "dc_hide_mailname='true'\n"
-            "dc_mailname_in_oh='true'\n",
+            "dc_mailname_in_oh='true'\n"
+            "MAILDIR_HOME_MAILDIR_LOCATION=/mail\n",
         )
         update_conf = self.container.exec(["/usr/sbin/update-exim4.conf"])
         out, err = update_conf.wait_output()

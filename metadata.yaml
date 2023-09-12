@@ -23,6 +23,8 @@ containers:
     mounts:
       - storage: queue-root
         location: /var/spool/exim4/input
+      - storage: user-mail
+        location: /mail
 
 # This field populates the Resources tab on Charmhub.
 resources:
@@ -39,3 +41,6 @@ storage:
   queue-root:
     type: filesystem
     location: /var/spool/exim4/input
+  user-mail:
+    type: filesystem
+    location: /mail

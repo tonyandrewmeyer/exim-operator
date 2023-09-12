@@ -6,7 +6,7 @@
  * [ ] Other actions, e.g. manipulating the hints dbs
  * [ ] Relation to something for ingress so that a hostname can be used to connect
  * [ ] Observability stack
- * [ ] Add storage for local mail delivery
+ * [x] Add storage for local mail delivery
  * [ ] Relation so that something else (e.g. mutt or roundcube or dovecot) could get the local mail.
  * [x] Convert the unit tests to use pytest
  * [ ] Something to practice with secrets, maybe a DKIM private key?
