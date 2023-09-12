@@ -1,7 +1,5 @@
 # This file populates the Overview on Charmhub.
 
-# The charm package name, no spaces (required)
-# See https://juju.is/docs/sdk/naming#heading--naming-charms for guidance.
 name: exim-operator
 display-name: Exim MTA
 summary: The Exim mail transfer agent, suitable for handling incoming & outgoing SMTP traffic
@@ -15,25 +13,29 @@ description: |
   A third paragraph that explains what need the charm meets.
 
   Finally, a paragraph that describes whom the charm is useful for.
-
 assumes:
   - juju >= 3.1
   - k8s-api
 
-# Your workload’s containers.
 containers:
   exim:
     resource: exim-image
+    mounts:
+      - storage: queue-root
+        location: /var/spool/exim4/input
 
 # This field populates the Resources tab on Charmhub.
 resources:
-  # An OCI image resource for each container listed above.
-  # You may remove this if your charm will run without a workload sidecar container.
   exim-image:
     type: oci-image
-    description: OCI image for the 'docker-exim' container
+    description: OCI image for the 'basic-exim' container
     # The upstream-source field is ignored by Juju. It is included here as a reference
     # so the integration testing suite knows which image to deploy during testing. This field
     # is also used by the 'canonical/charming-actions' Github action for automated releasing.
-    # XXX Need to properly customise my image, and really should put it somewhere.
+    # XXX Need to properly customise my image, and could put it in a public repo on dockerhub.
     upstream-source: tonyandrewmeyer/basic-exim
+
+storage:
+  queue-root:
+    type: filesystem
+    location: /var/spool/exim4/input
