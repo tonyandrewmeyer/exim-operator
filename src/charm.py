@@ -20,8 +20,8 @@ class EximCharm(ops.CharmBase):
         self.pebble_service_name = "exim-service"
         self.container = self.unit.get_container("exim")
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
-        self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
+        self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
@@ -37,16 +37,23 @@ class EximCharm(ops.CharmBase):
             [
                 "/usr/sbin/exim",
                 "-bd",
+                # A 30-minute queue length is the typical default value. It's
+                # not ideal if there's a lot of traffic - but while this could be
+                # exposed as a configuration option, you need to have a lot of
+                # knowledge of the system in order to choose sensible values
+                # (and in particular understand the relationship between the
+                # retry configuration and the queue interval) so it's better
+                # to just stick with a value we choose.
                 "-q 30m",
             ]
         )
         pebble_layer: ops.pebble.LayerDict = {
             "summary": "Exim MTA service",
-            "description": "pebble config layer for Exim MTA server",
+            "description": "Pebble config layer for Exim MTA server",
             "services": {
                 self.pebble_service_name: {
                     "override": "replace",
-                    "summary": "exim MTA",
+                    "summary": "Exim MTA",
                     "command": command,
                     "startup": "enabled",
                 }
@@ -56,7 +63,7 @@ class EximCharm(ops.CharmBase):
 
     def _on_config_changed(self, event) -> None:
         """Handle configuration changes."""
-        config_type = self.config["config-type"]  # see config.yaml
+        config_type = self.config["config-type"]
         # There are more types than this, but for simplicity only handle
         # these at the moment.
         if config_type not in ("internet", "smarthost", "local"):
@@ -65,9 +72,10 @@ class EximCharm(ops.CharmBase):
             )
             return
         logger.debug("Set Debian config type to %s", config_type)
-        other_hostnames = self.config["hostnames"]  # see config.yaml
+        other_hostnames = self.config["hostnames"]
         # We don't strictly validate that these are valid hostnames
-        # but we do a basic check that it's something similar.
+        # but we do a basic check that it's something similar, and that
+        # there isn't a blank hostname or one that would break the Exim list.
         if other_hostnames:
             other_hostnames = other_hostnames.split(",")
             for hostname in other_hostnames:
@@ -118,7 +126,6 @@ class EximCharm(ops.CharmBase):
                 logger.info("Added updated layer 'exim' to Pebble plan")
                 self.container.restart(self.pebble_service_name)
                 logger.info(f"Restarted '{self.pebble_service_name}' service")
-
             self.unit.status = ops.ActiveStatus()
         else:
             self.unit.status = ops.WaitingStatus("Waiting for Pebble in workload container")
