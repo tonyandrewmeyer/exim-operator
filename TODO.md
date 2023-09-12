@@ -9,3 +9,4 @@
  * [ ] Add storage for local mail delivery
  * [ ] Relation so that something else (e.g. mutt or roundcube or dovecot) could get the local mail.
  * [ ] Convert the unit tests to use pytest
+ * [ ] Something to practice with secrets, maybe a DKIM private key?
