@@ -1,0 +1,7 @@
+black
+codespell
+coverage
+pyright
+pytest
+ruff
+tox
