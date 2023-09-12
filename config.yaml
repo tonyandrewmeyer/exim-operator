@@ -6,7 +6,11 @@ options:
     default: "internet"
     description: Wrapper for the Debian configuration type; for example - internet, smarthost, local
     type: string
-  hostnames:
+  primary-hostname:
+    default: ""
+    description: The primary name of the email server.
+    type: string
+  extra-hostnames:
     default: ""
     description: A comma-separated list of domains for which we should consider ourselves the final destination.
     type: string

@@ -72,14 +72,15 @@ class EximCharm(ops.CharmBase):
             )
             return
         logger.debug("Set Debian config type to %s", config_type)
-        other_hostnames = self.config["hostnames"]
+        other_hostnames = self.config["extra-hostnames"]
+        hostname_check = re.compile(r"^[a-z0-9\.-]+$", re.IGNORECASE)
         # We don't strictly validate that these are valid hostnames
         # but we do a basic check that it's something similar, and that
         # there isn't a blank hostname or one that would break the Exim list.
         if other_hostnames:
             other_hostnames = other_hostnames.split(",")
             for hostname in other_hostnames:
-                if not re.match(r"^[a-z0-9\.-]+$", hostname, re.IGNORECASE):
+                if not hostname_check.match(hostname):
                     self.unit.status = ops.BlockedStatus(
                         "Invalid hostname list. Please provide a comma-separated list of hostnames"
                     )
@@ -88,6 +89,12 @@ class EximCharm(ops.CharmBase):
             # It's fine to not have any others.
             other_hostnames = []
         logger.debug("Specified list of additional hostnames: %s", other_hostnames)
+        primary_hostname = self.config["primary-hostname"]
+        if not hostname_check.match(primary_hostname):
+            self.unit.status = ops.BlockedStatus(
+                "Invalid primary hostname. This should be a domain name."
+            )
+            return
         # We use Debian's update-exim4.conf utility to make the changes rather
         # than writing the configuration file ourselves (or changing the configuration
         # files to load these all from a database, which isn't always possible anyway).
@@ -107,7 +114,8 @@ class EximCharm(ops.CharmBase):
             "dc_use_split_config='false'\n"
             "dc_hide_mailname='true'\n"
             "dc_mailname_in_oh='true'\n"
-            "MAILDIR_HOME_MAILDIR_LOCATION=/mail\n",
+            "MAILDIR_HOME_MAILDIR_LOCATION=/mail\n"
+            f"MAIN_HARDCODE_PRIMARY_HOSTNAME={primary_hostname}\n",
         )
         update_conf = self.container.exec(["/usr/sbin/update-exim4.conf"])
         out, err = update_conf.wait_output()

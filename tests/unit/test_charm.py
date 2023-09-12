@@ -117,12 +117,16 @@ def test_pebble_layer(harness: ops.testing.Harness) -> None:
 
 def test_configuration_change(harness: ops.testing.Harness) -> None:
     """Check that changing a configuration value works correctly."""
+    # Set an initial primary hostname.
+    harness.disable_hooks()
+    harness.update_config({"primary-hostname": "test.invalid"})
+    harness.enable_hooks()
     harness.set_can_connect("exim", True)
     fs = harness.get_filesystem_root("exim")
     (fs / "etc" / "exim4").mkdir(parents=True)
     harness.handle_exec("exim", ["/usr/sbin/update-exim4.conf"], result="")
     other_hostnames = "example.com", "example.org"
-    harness.update_config({"hostnames": ",".join(other_hostnames)})
+    harness.update_config({"extra-hostnames": ",".join(other_hostnames)})
     expected = f"""dc_localdelivery='maildir_home'
 dc_eximconfig_configtype='internet'
 dc_other_hostnames='{":".join(other_hostnames)}'
@@ -137,6 +141,7 @@ dc_use_split_config='false'
 dc_hide_mailname='true'
 dc_mailname_in_oh='true'
 MAILDIR_HOME_MAILDIR_LOCATION=/mail
+MAIN_HARDCODE_PRIMARY_HOSTNAME={harness.charm.config["primary-hostname"]}
 """
     assert (fs / "etc" / "exim4" / "update-exim4.conf.conf").read_text("ascii") == expected
 
@@ -144,11 +149,11 @@ MAILDIR_HOME_MAILDIR_LOCATION=/mail
 def test_invalid_configuration(harness: ops.testing.Harness) -> None:
     """Check that we are prevented from setting an invalid hostname configuration value."""
     harness.set_can_connect("exim", True)
-    harness.update_config({"hostnames": "example.com,,example.org"})
+    harness.update_config({"extra-hostnames": "example.com,,example.org"})
     assert harness.model.unit.status == ops.BlockedStatus(
         "Invalid hostname list. Please provide a comma-separated list of hostnames"
     )
-    harness.update_config({"hostnames": "not_a_domain_name.com"})
+    harness.update_config({"extra-hostnames": "not_a_domain_name.com"})
     assert harness.model.unit.status == ops.BlockedStatus(
         "Invalid hostname list. Please provide a comma-separated list of hostnames"
     )
