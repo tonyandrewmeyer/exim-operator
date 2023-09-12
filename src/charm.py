@@ -79,7 +79,7 @@ class EximCharm(ops.CharmBase):
         if other_hostnames:
             other_hostnames = other_hostnames.split(",")
             for hostname in other_hostnames:
-                if not re.match(r"[\w\.-]+", hostname):
+                if not re.match(r"^[a-z0-9\.-]+$", hostname, re.IGNORECASE):
                     self.unit.status = ops.BlockedStatus(
                         "Invalid hostname list. Please provide a comma-separated list of hostnames"
                     )
