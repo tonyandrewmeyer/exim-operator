@@ -3,15 +3,8 @@
 # The charm package name, no spaces (required)
 # See https://juju.is/docs/sdk/naming#heading--naming-charms for guidance.
 name: exim-operator
-
-# The following metadata are human-readable and will be published prominently on Charmhub.
-
-# (Recommended)
 display-name: Exim MTA
-
-# (Required)
 summary: The Exim mail transfer agent, suitable for handling incoming & outgoing SMTP traffic
-
 description: |
   An opinionated install of the Exim MTA, configured to handle incoming SMTP traffic from the
   wide internet, and listen for local SMTP connections for delivering outgoing email to the
@@ -23,10 +16,14 @@ description: |
 
   Finally, a paragraph that describes whom the charm is useful for.
 
+assumes:
+  - juju >= 3.1
+  - k8s-api
+
 # Your workload’s containers.
 containers:
   exim:
-    resource: metabrainz/docker-exim
+    resource: exim-image
 
 # This field populates the Resources tab on Charmhub.
 resources:
@@ -38,5 +35,5 @@ resources:
     # The upstream-source field is ignored by Juju. It is included here as a reference
     # so the integration testing suite knows which image to deploy during testing. This field
     # is also used by the 'canonical/charming-actions' Github action for automated releasing.
-    # XXX I should probably create my own image.
-    upstream-source: metabrainz/docker-exim
+    # XXX Need to properly customise my image, and really should put it somewhere.
+    upstream-source: tonyandrewmeyer/basic-exim
