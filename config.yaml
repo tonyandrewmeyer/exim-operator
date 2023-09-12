@@ -1,0 +1,9 @@
+options:
+  config-type:
+    default: "internet"
+    description: Wrapper for the Debian configuration type; for example - internet, smarthost, local
+    type: string
+  hostnames:
+    default: ""
+    description: A comma-separated list of domains for which we should consider ourselves the final destination.
+    type: string

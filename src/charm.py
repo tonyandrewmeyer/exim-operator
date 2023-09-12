@@ -21,14 +21,12 @@ class EximCharm(ops.CharmBase):
         self.container = self.unit.get_container("exim")
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
         self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
+        self.framework.observe(self.on.config_changed, self._on_config_changed)
 
-    def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
+    def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
-        container = event.workload
-        # Add initial Pebble config layer using the Pebble API
-        container.add_layer("exim", self._pebble_layer, combine=True)
-        # Make Pebble reevaluate its plan, ensuring any services are started if enabled.
-        container.replan()
+        self._update_layer_and_restart(event)
+        self.unit.status = ops.MaintenanceStatus("Getting Exim version")
         self.unit.set_workload_version(self.version)
         self.unit.status = ops.ActiveStatus()
 
@@ -55,6 +53,75 @@ class EximCharm(ops.CharmBase):
             },
         }
         return ops.pebble.Layer(pebble_layer)
+
+    def _on_config_changed(self, event) -> None:
+        """Handle configuration changes."""
+        config_type = self.config["config-type"]  # see config.yaml
+        # There are more types than this, but for simplicity only handle
+        # these at the moment.
+        if config_type not in ("internet", "smarthost", "local"):
+            self.unit.status = ops.BlockedStatus(
+                "Invalid config type. Please use 'internet', 'smarthost', or 'local'"
+            )
+            return
+        logger.debug("Set Debian config type to %s", config_type)
+        other_hostnames = self.config["hostnames"]  # see config.yaml
+        # We don't strictly validate that these are valid hostnames
+        # but we do a basic check that it's something similar.
+        if other_hostnames:
+            other_hostnames = other_hostnames.split(",")
+            for hostname in other_hostnames:
+                if not re.match(r"[\w\.-]+", hostname):
+                    self.unit.status = ops.BlockedStatus(
+                        "Invalid hostname list. Please provide a comma-separated list of hostnames"
+                    )
+                    return
+        else:
+            # It's fine to not have any others.
+            other_hostnames = []
+        logger.debug("Specified list of additional hostnames: %s", other_hostnames)
+        # We use Debian's update-exim4.conf utility to make the changes rather
+        # than writing the configuration file ourselves (or changing the configuration
+        # files to load these all from a database, which isn't always possible anyway).
+        self.container.push(
+            "/etc/exim4/update-exim4.conf.conf",
+            source="dc_localdelivery='maildir_home'\n"
+            f"dc_eximconfig_configtype='{config_type}'\n"
+            f"dc_other_hostnames='{':'.join(other_hostnames)}'\n"
+            # We don't change these, but need to provide them.
+            "dc_local_interfaces='0.0.0.0 ; ::0'\n"
+            "dc_readhost=''\n"
+            "dc_relay_domains=''\n"
+            "dc_minimaldns='false'\n"
+            "dc_relay_nets='0.0.0.0/0'\n"
+            "dc_smarthost=''\n"
+            "CFILEMODE='644'\n"
+            "dc_use_split_config='false'\n"
+            "dc_hide_mailname='true'\n"
+            "dc_mailname_in_oh='true'\n",
+        )
+        update_conf = self.container.exec(["/usr/sbin/update-exim4.conf"])
+        out, err = update_conf.wait_output()
+        logger.debug("update-exim4-conf said: {out!r} {err!r}")
+        # Restart the service so that it picks up the configuration changes that
+        # are not loaded on each connection.
+        self._update_layer_and_restart(None)
+
+    def _update_layer_and_restart(self, event) -> None:
+        """Define and start a workload using the Pebble API."""
+        self.unit.status = ops.MaintenanceStatus("Assembling pod spec")
+        if self.container.can_connect():
+            new_layer = self._pebble_layer.to_dict()
+            services = self.container.get_plan().to_dict().get("services", {})
+            if services != new_layer.get("services"):
+                self.container.add_layer("exim", self._pebble_layer, combine=True)
+                logger.info("Added updated layer 'exim' to Pebble plan")
+                self.container.restart(self.pebble_service_name)
+                logger.info(f"Restarted '{self.pebble_service_name}' service")
+
+            self.unit.status = ops.ActiveStatus()
+        else:
+            self.unit.status = ops.WaitingStatus("Waiting for Pebble in workload container")
 
     @property
     def version(self) -> str:
@@ -83,6 +150,11 @@ class EximCharm(ops.CharmBase):
         return mo.groups()[0].replace(" #", "-debian-") if mo else "unknown"
 
     def _on_force_queue_action(self, event) -> None:
+        """Force an Exim queue run.
+
+        If the 'frozen' parameter is set, then tell Exim to also retry
+        delivery for all of the frozen messages.
+        """
         frozen = event.params["frozen"]  # see actions.yaml
         try:
             exim = self.container.exec(["/usr/sbin/exim", "-bpc"])
