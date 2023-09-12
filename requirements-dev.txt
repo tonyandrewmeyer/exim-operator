@@ -3,5 +3,6 @@ codespell
 coverage
 pyright
 pytest
+pytest-operator
 ruff
 tox
