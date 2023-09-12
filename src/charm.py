@@ -20,6 +20,7 @@ class EximCharm(ops.CharmBase):
         self.pebble_service_name = "exim-service"
         self.container = self.unit.get_container("exim")
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
+        self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
@@ -77,6 +78,21 @@ class EximCharm(ops.CharmBase):
         # `juju status` won't show a version that has a space or a '#' (or '+'),
         # so adjust it slightly.
         return mo.groups()[0].replace(" #", "-debian-") if mo else "unknown"
+
+    def _on_force_queue_action(self, event) -> None:
+        frozen = event.params["frozen"]  # see actions.yaml
+        exim = self.container.exec(["/usr/sbin/exim", "-bpc"])
+        # XXX There could be some error handling here.
+        count = int(exim.wait_output()[0].strip())
+        cmd = ["/usr/sbin/exim", "-qff" if frozen else "-qf"]
+        # There is no output expected from this - the queue run takes place
+        # in the background.
+        self.container.exec(cmd)
+        # XXX The way this handles the 'item/items' plural is not well suited
+        # XXX to i81n.
+        event.set_results(
+            {"result": f"Queue run initiated, {count} item{'' if count == 1 else 's'} in queue"}
+        )
 
 
 if __name__ == "__main__":  # pragma: nocover

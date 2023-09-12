@@ -1,0 +1,7 @@
+force-queue:
+  description: Triggers an immediate queue run, forcing a delivery attempt
+  params:
+    frozen:
+      description: "Also try frozen messages"
+      type: boolean
+      default: False
