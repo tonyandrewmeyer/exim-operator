@@ -10,6 +10,8 @@ Use links instead.
 
 # exim-operator
 
+**This is being used as an exercise for learning how to write a charm and is not (yet?) intended for real-world use.**
+
 Charmhub package name: exim-operator
 More information: https://charmhub.io/exim-operator
 
