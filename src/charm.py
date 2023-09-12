@@ -71,7 +71,6 @@ class EximCharm(ops.CharmBase):
 
     def _request_version(self) -> str:
         """Fetch the version from the running workload using a subprocess."""
-        # XXX This could handle errors (e.g. if Exim is missing) more gracefully.
         try:
             exim = self.container.exec(["/usr/sbin/exim", "-bV"])
             out = exim.wait_output()[0]
@@ -85,13 +84,25 @@ class EximCharm(ops.CharmBase):
 
     def _on_force_queue_action(self, event) -> None:
         frozen = event.params["frozen"]  # see actions.yaml
-        exim = self.container.exec(["/usr/sbin/exim", "-bpc"])
-        # XXX There could be some error handling here.
-        count = int(exim.wait_output()[0].strip())
+        try:
+            exim = self.container.exec(["/usr/sbin/exim", "-bpc"])
+            count = int(exim.wait_output()[0].strip())
+        except ops.pebble.ExecError as e:
+            logger.warning("Unable to get current queue size: %s", e, exc_info=True)
+            count = "unknown"
         cmd = ["/usr/sbin/exim", "-qff" if frozen else "-qf"]
         # There is no output expected from this - the queue run takes place
         # in the background.
-        self.container.exec(cmd)
+        try:
+            self.container.exec(cmd)
+        except ops.pebble.ExecError as e:
+            logger.exception("Unable to trigger forced queue run: %s", e)
+            event.set_results(
+                {
+                    "result": "Queue run could not start, "
+                    f"{count} item{'' if count == 1 else 's'} in queue"
+                }
+            )
         # XXX The way this handles the 'item/items' plural is not well suited
         # XXX to i81n.
         event.set_results(
