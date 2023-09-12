@@ -72,9 +72,13 @@ class EximCharm(ops.CharmBase):
     def _request_version(self) -> str:
         """Fetch the version from the running workload using a subprocess."""
         # XXX This could handle errors (e.g. if Exim is missing) more gracefully.
-        exim = self.container.exec(["/usr/sbin/exim", "-bV"])
-        out = exim.wait_output()[0]
-        mo = re.search(r".+(\d+\.\d+ #\d+).+", out)
+        try:
+            exim = self.container.exec(["/usr/sbin/exim", "-bV"])
+            out = exim.wait_output()[0]
+        except ops.pebble.ExecError as e:
+            logger.warning("Unable to get Exim version: %s", e, exc_info=True)
+            return "unknown"
+        mo = re.match(r".*?(\d+\.\d+ #\d+).+", out)
         # `juju status` won't show a version that has a space or a '#' (or '+'),
         # so adjust it slightly.
         return mo.groups()[0].replace(" #", "-debian-") if mo else "unknown"
