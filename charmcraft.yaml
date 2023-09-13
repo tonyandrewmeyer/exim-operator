@@ -6,3 +6,13 @@ bases:
     run-on:
     - name: ubuntu
       channel: "22.04"
+# cryptography cannot be built on the Ubuntu base image (needs ffi),
+# so install the binary first, rather than using an alternative base.
+# XXX mysqlclient also has this issue (needs default-libmysqlclient-dev
+# XXX and pkg-config in particular) - but the workaround doesn't work
+# XXX for that case - unclear why this is?
+parts:
+  charm:
+    charm-binary-python-packages:
+      - cryptography
+#      - mysqlclient
