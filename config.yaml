@@ -8,7 +8,7 @@ options:
     type: string
   primary-hostname:
     default: ""
-    description: The primary name of the email server.
+    description: The primary name of the email server. If not set, Exim will use the system's FQDN.
     type: string
   extra-hostnames:
     default: ""
