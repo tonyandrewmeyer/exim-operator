@@ -3,6 +3,7 @@
 name: exim-operator
 display-name: Exim MTA
 summary: The Exim mail transfer agent, suitable for handling incoming & outgoing SMTP traffic
+# XXX To-do (finish off this).
 description: |
   An opinionated install of the Exim MTA, configured to handle incoming SMTP traffic from the
   wide internet, and listen for local SMTP connections for delivering outgoing email to the
@@ -16,6 +17,10 @@ description: |
 assumes:
   - juju >= 3.1
   - k8s-api
+
+peers:
+  exim-peer:
+    interface: exim_peers
 
 containers:
   exim:
@@ -38,9 +43,47 @@ resources:
     upstream-source: tonyandrewmeyer/basic-exim
 
 storage:
+  # This is the message queue. Exim writes all messages to this location (generally two
+  # files per message, one with metadata and headers and one with the body). Usually,
+  # an immediate delivery attempt will be made and will be successful, and then the queued
+  # files are removed, so they are short-lived. However, if the message cannot be delivered
+  # (or if there has been an instruction to not try immediate delivery) then they may stick
+  # around for a long time (perhaps days, depending on the retry schedule and handling of
+  # 'frozen' messages). Even in the ideal case, we would not want to lose a message if the
+  # unit/pod failed after acceptance and before delivery.
   queue-root:
     type: filesystem
     location: /var/spool/exim4/input
+  # XXX The intention here is that you'd point something else at this storage, like
+  # XXX Dovecot or mutt or Roundcube (or ...) to be able to nicely access the received
+  # XXX mail.
   user-mail:
     type: filesystem
     location: /mail
+
+requires:
+  # Provides a public name (e.g. to use in MX records or SMTP settings) for the service.
+  ingress:
+    interface: ingress
+    limit: 1
+  # Regular COS-lite functionality.
+  log-proxy:
+    interface: loki_push_api
+    limit: 1
+  # We'll put various Exim configuration in a database. In practice, you'd likely then
+  # expose this via an API (and then UI). Exim doesn't _require_ using a database, but
+  # this is a typical way to provide more dynamic functionality without having large
+  # lookup files.
+  database:
+    interface: mysql_client
+    limit: 1
+
+provides:
+  metrics-endpoint:
+    # XXX This assumes a /metrics endpoint, which Exim obviously does not have. I think we want remote-write?
+    interface: prometheus_scrape
+  # Regular COS-lite functionality.
+  # XXX It would be good to actually have a dashboard defined, but that
+  # XXX seems more like learning grafana than learning juju/charming.
+  grafana-dashboard:
+    interface: grafana_dashboard
