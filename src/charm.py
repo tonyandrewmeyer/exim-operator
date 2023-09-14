@@ -5,10 +5,8 @@
 """Charm the application."""
 
 import contextlib
-import json
 import logging
 import re
-import typing
 
 # import MySQLdb
 import ops
@@ -21,8 +19,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 logger = logging.getLogger(__name__)
-
-PEER_NAME = "exim-peer"
 
 
 class EximCharm(ops.CharmBase):
@@ -39,7 +35,9 @@ class EximCharm(ops.CharmBase):
         self.database = DatabaseRequires(self, relation_name="database", database_name="exim")
         self.framework.observe(self.database.on.database_created, self._on_database_created)
         self.framework.observe(self.database.on.endpoints_changed, self._on_database_created)
-        self.framework.observe(self.on.database_relation_broken, self._on_database_relation_removed)
+        self.framework.observe(
+            self.on.database_relation_broken, self._on_database_relation_removed
+        )
         self._logging = LogProxyConsumer(
             self,
             relation_name="log-proxy",
@@ -67,9 +65,8 @@ class EximCharm(ops.CharmBase):
         # to just stick with a value we choose.
         self.container.push("/etc/crontab", "*/30 * * * * /usr/sbin/exim -q")
         self._update_layer_and_restart(event)
-        self.unit.status = ops.MaintenanceStatus("Getting Exim version")
+        logger.debug("Setting Exim version")
         self.unit.set_workload_version(self.version)
-        self.unit.status = ops.ActiveStatus()
 
     @property
     def _pebble_layer(self) -> ops.pebble.Layer:
@@ -114,7 +111,7 @@ class EximCharm(ops.CharmBase):
         # these at the moment.
         if config_type not in ("internet", "smarthost", "local"):
             self.unit.status = ops.BlockedStatus(
-                "Invalid config type. Please use 'internet', 'smarthost', or 'local'"
+                "config-type must be: 'internet', 'smarthost', or 'local'"
             )
             return
         logger.debug("Set Debian config type to %s", config_type)
@@ -128,7 +125,7 @@ class EximCharm(ops.CharmBase):
             for hostname in other_hostnames:
                 if not hostname_check.match(hostname):
                     self.unit.status = ops.BlockedStatus(
-                        "Invalid hostname list. Please provide a comma-separated list of hostnames"
+                        "extra-hostnames not comma-separated hostname list"
                     )
                     return
         else:
@@ -137,9 +134,7 @@ class EximCharm(ops.CharmBase):
         logger.debug("Specified list of additional hostnames: %s", other_hostnames)
         primary_hostname = self.config["primary-hostname"]
         if not hostname_check.match(primary_hostname):
-            self.unit.status = ops.BlockedStatus(
-                "Invalid primary hostname. This should be a domain name."
-            )
+            self.unit.status = ops.BlockedStatus("primary-hostname must be a host name")
             return
         self._check_submission_config([primary_hostname] + other_hostnames)
         # We use Debian's update-exim4.conf utility to make the changes rather
@@ -189,18 +184,18 @@ class EximCharm(ops.CharmBase):
     def _update_layer_and_restart(self, event) -> None:
         """Define and start a workload using the Pebble API."""
         self.unit.status = ops.MaintenanceStatus("Assembling pod spec")
-        if self.container.can_connect():
-            new_layer = self._pebble_layer.to_dict()
-            services = self.container.get_plan().to_dict().get("services", {})
-            if services != new_layer.get("services"):
-                self.container.add_layer("exim", self._pebble_layer, combine=True)
-                logger.info("Added updated layer 'exim' to Pebble plan")
-                for service_name in services:
-                    self.container.restart(service_name)
-                    logger.info(f"Restarted '{service_name}' service")
-            self.unit.status = ops.ActiveStatus()
-        else:
+        if not self.container.can_connect():
             self.unit.status = ops.WaitingStatus("Waiting for Pebble in workload container")
+            return
+        new_layer = self._pebble_layer.to_dict()
+        services = self.container.get_plan().to_dict().get("services", {})
+        if services != new_layer.get("services"):
+            self.container.add_layer("exim", self._pebble_layer, combine=True)
+            logger.info("Added updated layer 'exim' to Pebble plan")
+            for service_name in services:
+                self.container.restart(service_name)
+                logger.info(f"Restarted '{service_name}' service")
+        self.unit.status = ops.ActiveStatus()
 
     @property
     def version(self) -> str:
@@ -210,7 +205,7 @@ class EximCharm(ops.CharmBase):
         ):
             try:
                 return self._request_version()
-            # Catching Exception is not ideal, but we don't care much for the error here.
+                # Catching Exception is not ideal, but we don't care much for the error here.
             except Exception as e:
                 logger.warning("unable to get version from Exim: %s", str(e), exc_info=True)
         return "unknown"
@@ -234,7 +229,7 @@ class EximCharm(ops.CharmBase):
         If the 'frozen' parameter is set, then tell Exim to also retry
         delivery for all of the frozen messages.
         """
-        frozen = event.params["frozen"]  # see actions.yaml
+        frozen = event.params["frozen"]
         try:
             exim = self.container.exec(["/usr/sbin/exim", "-bpc"])
             count = int(exim.wait_output()[0].strip())
@@ -260,65 +255,71 @@ class EximCharm(ops.CharmBase):
             {"result": f"Queue run initiated, {count} item{'' if count == 1 else 's'} in queue"}
         )
 
-    @property
-    def peers(self) -> ops.Relation | None:
-        """Fetch the peer relation."""
-        return self.model.get_relation(PEER_NAME)
+    def _on_get_dkim_keys_action(self, event):
+        """Provide the user with the DKIM public keys that should be
+        added to the domain's DNS as TXT records.
 
-    def set_peer_data(self, key: str, data: typing.Any) -> None:
-        """Put information into the peer data bucket instead of `StoredState`."""
-        if not self.peers:
-            logger.error("Unable to set peer data.")
-            return
-        self.peers.data[self.app][key] = json.dumps(data)
-
-    def get_peer_data(self, key: str) -> dict[str, typing.Any]:
-        """Retrieve information from the peer data bucket instead of `StoredState`."""
-        if not self.peers:
-            return {}
-        data = self.peers.data[self.app].get(key, "")
-        return json.loads(data) if data else {}
+        By default, returns keys for all domains, but can be optionally
+        limited to a specific domain."""
+        domain = event.params["domain"]
+        keys = {}
+        query = "SELECT domain, key FROM dkim"
+        args = []
+        if domain:
+            query += " WHERE domain=%s"
+            args.append(domain)
+        # Broken until I figure out how to give charmcraft pack a local
+        # wheel or the libraries to build one.
+        return
+        connection_args = self._fetch_mysql_relation_data()
+        db = MySQLdb.connect(  # noqa: F821
+            host=connection_args["db_host"],
+            port=connection_args["db_port"],
+            user=connection_args["db_username"],
+            passwd=connection_args["db_password"],
+        )
+        with contextlib.closing(db):
+            with db.cursor() as c:
+                c.execute(query, args)
+                for domain, private_key in c.fetchall():
+                    public_key = private_key.public_key().public_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                    )
+                    keys[domain] = public_key
+        event.set_results(keys)
 
     def _check_submission_config(self, domains):
         """Check that Exim is properly configured to handle sending from the specified domains."""
-        public_keys = self.get_peer_data("dkim-public-keys")
-        for domain in domains:
-            if domain not in public_keys:
-                logger.info(f"Generating DKIM certificate for {domain}")
-                public_keys[domain] = self._generate_dkim_certificate(domain)
-        # XXX Is this the best way to provide this? The user needs to get this
-        # XXX information to store the public key in DNS (assuming that we are
-        # XXX not integrated with the domain's DNS provider, so cannot just do
-        # XXX it ourselves). Iiuc, peer data is really more meant for use by
-        # XXX other parts of the model, rather than the user.
-        # XXX It's nice to be persisted, although as long as the private key is
-        # XXX persisted, then we can always just regenerate the public key from
-        # XXX that, of course.
-        # XXX Maybe it should instead be an action? get-dkim-public-keys?
-        # XXX (Obviously, it's not secret data since it's only the public key
-        # XXX and it's going to be put in public DNS anyway).
-        self.set_peer_data("dkim-public-keys", public_keys)
+        # Broken until I figure out how to give charmcraft pack a local
+        # wheel or the libraries to build one.
+        return
+        connection_args = self._fetch_mysql_relation_data()
+        db = MySQLdb.connect(  # noqa: F821
+            host=connection_args["db_host"],
+            port=connection_args["db_port"],
+            user=connection_args["db_username"],
+            passwd=connection_args["db_password"],
+        )
+        with contextlib.closing(db):
+            with db.cursor() as c:
+                for domain in domains:
+                    c.execute("SELECT 1 FROM dkim WHERE domain=%s", (domain,))
+                    if not c.fetchone():
+                        logger.info(f"Generating DKIM certificate for {domain}")
+                        self._generate_dkim_certificate(domain)
 
-    def _generate_dkim_certificate(self, domain: str) -> str:
+    def _generate_dkim_certificate(self, domain: str) -> None:
         """Generate an appropriate certificate to use with DKIM.
 
         Returns the public key in PEM format.
         """
-        if not self.peers:
-            # XXX Tests don't know about this yet.
-            return ""
-
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         private_key_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption(),
         )
-        public_key = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        )
-        self._store_dkim_key(domain, private_key_pem.decode())
         # XXX To-do: adjust the Exim configuration to actually use this.
         # XXX (should probably forget about using update-exim4.conf and just
         # XXX have the config as a template in the charm).
@@ -327,8 +328,7 @@ class EximCharm(ops.CharmBase):
         # XXX Probably we want to be tracking the domains we handle in the DB
         # XXX and link it up that way.
         private_key_pem.decode()
-        logger.debug("Generated DKIM key pair for %s: %r", domain, public_key.decode())
-        return public_key.decode()
+        logger.debug("Generated DKIM key pair for %s", domain)
 
     def _fetch_mysql_relation_data(self) -> dict:
         """Fetch MySQL relation data.
@@ -383,8 +383,9 @@ class EximCharm(ops.CharmBase):
         with contextlib.closing(db):
             with db.cursor() as c:
                 # For simplicity, just run the create table with
-                # 'if not exists', rather than checking first.
-                c.execute()
+                # 'if not exists', rather than checking first
+                # (also avoiding the race condition).
+                c.execute("""CREATE TABLE IF NOT EXISTS ...""")
                 db.commit()
 
     def _store_dkim_key(self, domain: str, private_key: str) -> None:
