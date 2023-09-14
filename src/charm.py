@@ -229,6 +229,7 @@ class EximCharm(ops.CharmBase):
         mo = re.match(r".*?(\d+\.\d+ #\d+).+", out)
         # `juju status` won't show a version that has a space or a '#' (or '+'),
         # so adjust it slightly.
+        # See https://github.com/juju/juju/blob/13afc56eb85cdfc7953610dd900dd4d62f193841/cmd/juju/status/output_tabular.go#L158  # noqa: E501,W505
         return mo.groups()[0].replace(" #", "-debian-") if mo else "unknown"
 
     def _on_force_queue_action(self, event) -> None:
