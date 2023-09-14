@@ -8,3 +8,11 @@ force-queue:
       description: "Also try frozen messages"
       type: boolean
       default: False
+
+get-dkim-keys:
+  description: Provides the public keys to be added to the domain's DKIM DNS TXT record
+  params:
+    domain:
+    description: "Only return the key for this domain. If not specified, return keys for all domains."
+    type: string
+    default: ""

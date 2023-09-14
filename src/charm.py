@@ -32,6 +32,7 @@ class EximCharm(ops.CharmBase):
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
+        self.framework.observe(self.on.get_dkim_keys_action, self._on_get_dkim_keys_action)
         self.database = DatabaseRequires(self, relation_name="database", database_name="exim")
         self.framework.observe(self.database.on.database_created, self._on_database_created)
         self.framework.observe(self.database.on.endpoints_changed, self._on_database_created)
