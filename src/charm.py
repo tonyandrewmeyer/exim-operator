@@ -17,7 +17,6 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseRequires,
 )
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
-from charms.traefik_k8s.v1.ingress import IngressPerAppRequirer
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -49,30 +48,8 @@ class EximCharm(ops.CharmBase):
                 "/var/log/exim4/paniclog",
             ],
         )
-        # XXX This does not work. I thought I'd be able to have traefik ingress
-        # XXX non-HTTP[S] connections (maybe with the custom routes rather than
-        # XXX IngreePerAppRequirer) but that doesn't seem to be the case.
-        # XXX It would be nice if there was some form of SMTP ingress, where
-        # XXX SNI was supported - this lets you do multi-tenanting, where you
-        # XXX have e.g. traffic for example.com and example.org arriving into the
-        # XXX same system but can serve up different TLS certificates depending
-        # XXX on which site was requested (this has to be done with TLS SNI
-        # XXX because you don't have the domain name until somewhat late in the
-        # XXX SMTP conversation, unlike with HTTP).
-        # XXX If that's a lost cause (or huge amount of work), it would be nice
-        # XXX to at least be able to have an externally available service,
-        # XXX which I guess is a NodePort (my limited experience with K8s is
-        # XXX likely showing here). Can that be configured with Juju or would
-        # XXX it be done directly with K8s? Or using the Python K8s API to do it?
-        # XXX Can I tell k8s that I want it to be available on port 25, or does
-        # XXX it have to be a high port?
-        # XXX (nginx will do SMTP load balancing, acting as a proxy, although
-        # XXX I believe you are required to have an HTTP endpoint that handles
-        # XXX auth. But I couldn't see a way to get this working in k8s either).
-        self.delivery_ingress = IngressPerAppRequirer(
-            self,
-            port=25,
-        )
+
+    # XXX To-do: unit.open_port
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
