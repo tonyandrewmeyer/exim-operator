@@ -48,8 +48,8 @@ class EximCharm(ops.CharmBase):
                 "/var/log/exim4/paniclog",
             ],
         )
-
-    # XXX To-do: unit.open_port
+        # Provide the SMTP interface (after 'expose' is run).
+        self.unit.open_port("tcp", 22)
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
