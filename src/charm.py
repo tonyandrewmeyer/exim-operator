@@ -30,7 +30,8 @@ class EximCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.pebble_service_name = "exim-service"
+        self.pebble_exim_service_name = "exim-service"
+        self.pebble_cron_service_name = "cron-service"
         self.container = self.unit.get_container("exim")
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
@@ -53,14 +54,10 @@ class EximCharm(ops.CharmBase):
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
-        self._update_layer_and_restart(event)
-        self.unit.status = ops.MaintenanceStatus("Getting Exim version")
-        self.unit.set_workload_version(self.version)
-        self.unit.status = ops.ActiveStatus()
-
-    @property
-    def _pebble_layer(self) -> ops.pebble.Layer:
-        """Return a dictionary representing a Pebble layer."""
+        # Ensure that we have a crontab for cron to run.
+        # If we made the queue interval configurable we could put this in
+        # the config changed handler, but since we're being opinionated,
+        # we can just ensure that it exists here.
         # A 30-minute queue length is the typical default value. It's
         # not ideal if there's a lot of traffic - but while this could be
         # exposed as a configuration option, you need to have a lot of
@@ -68,20 +65,41 @@ class EximCharm(ops.CharmBase):
         # (and in particular understand the relationship between the
         # retry configuration and the queue interval) so it's better
         # to just stick with a value we choose.
-        command = "/usr/sbin/exim -bs"
-        pebble_layer: ops.pebble.LayerDict = {
-            "summary": "Exim MTA service",
-            "description": "Pebble config layer for Exim MTA server",
-            "services": {
-                self.pebble_service_name: {
-                    "override": "replace",
-                    "summary": "Exim MTA",
-                    "command": command,
-                    "startup": "enabled",
-                }
-            },
-        }
-        return ops.pebble.Layer(pebble_layer)
+        self.container.push("/etc/crontab", "*/30 * * * * /usr/sbin/exim -q")
+        self._update_layer_and_restart(event)
+        self.unit.status = ops.MaintenanceStatus("Getting Exim version")
+        self.unit.set_workload_version(self.version)
+        self.unit.status = ops.ActiveStatus()
+
+    @property
+    def _pebble_layer(self) -> ops.pebble.Layer:
+        """Return a dictionary representing a Pebble layer for Exim."""
+        return ops.pebble.Layer(
+            {
+                "summary": "Exim MTA service",
+                "description": "Pebble config layer for Exim MTA server",
+                "services": {
+                    self.pebble_exim_service_name: {
+                        "override": "replace",
+                        "summary": "Exim MTA",
+                        "command": "/usr/sbin/exim -bs",
+                        "startup": "enabled",
+                    },
+                    # Use cron to periodically do an Exim queue run.
+                    # The "-q" option will do this when given a time (e.g. "-q 30m")
+                    # but will then daemonise, which we do not want, because we want
+                    # to have Pebble managing what services are running.
+                    # We use the standard cron service to handle this, since it's
+                    # already available in the container image.
+                    self.pebble_cron_service_name: {
+                        "override": "replace",
+                        "summary": "cron",
+                        "command": "/usr/sbin/cron -f",
+                        "startup": "enabled",
+                    },
+                },
+            }
+        )
 
     def _on_config_changed(self, event) -> None:
         """Handle configuration changes."""
@@ -171,8 +189,9 @@ class EximCharm(ops.CharmBase):
             if services != new_layer.get("services"):
                 self.container.add_layer("exim", self._pebble_layer, combine=True)
                 logger.info("Added updated layer 'exim' to Pebble plan")
-                self.container.restart(self.pebble_service_name)
-                logger.info(f"Restarted '{self.pebble_service_name}' service")
+                for service_name in services:
+                    self.container.restart(service_name)
+                    logger.info(f"Restarted '{service_name}' service")
             self.unit.status = ops.ActiveStatus()
         else:
             self.unit.status = ops.WaitingStatus("Waiting for Pebble in workload container")
@@ -180,7 +199,9 @@ class EximCharm(ops.CharmBase):
     @property
     def version(self) -> str:
         """Reports the current workload (Exim) version."""
-        if self.container.can_connect() and self.container.get_services(self.pebble_service_name):
+        if self.container.can_connect() and self.container.get_services(
+            self.pebble_exim_service_name
+        ):
             try:
                 return self._request_version()
             # Catching Exception is not ideal, but we don't care much for the error here.
