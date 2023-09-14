@@ -82,6 +82,12 @@ class EximCharm(ops.CharmBase):
                     self.pebble_exim_service_name: {
                         "override": "replace",
                         "summary": "Exim MTA",
+                        # XXX A problem here is that -bs is used for SMTP
+                        # XXX over stdin/stdout or normal non-daemon SMTP
+                        # XXX depending on whether stdin is a TCP/IP socket.
+                        # XXX We need to somehow make sure that it is, as
+                        # XXX long as that's not going to interfere with
+                        # XXX pebble.
                         "command": "/usr/sbin/exim -bs",
                         "startup": "enabled",
                     },
