@@ -145,12 +145,7 @@ class EximCharm(ops.CharmBase):
         # XXX This should actually get integrated into the configuration.
         # XXX It definitely should not be logged raw like this, since it
         # XXX contains the credentials.
-        try:
-            logger.info("Database bits: %s", self._fetch_mysql_relation_data())
-        except SystemExit:
-            # XXX Presumably the tests. What's the typical mocking for this
-            # XXX kind of thing (database access)? See also comment below.
-            logger.warning("Could not get DB information")
+        logger.info("Database bits: %s", self._fetch_mysql_relation_data())
         # XXX This is actually failing right at the moment. Seems like maybe
         # XXX it is an issue with the container rather than pebble or anything
         # XXX else (if I run the command manually on the workload container
@@ -336,7 +331,6 @@ class EximCharm(ops.CharmBase):
             }
             return db_data
         self.unit.status = ops.WaitingStatus("Waiting for database relation")
-        raise SystemExit(0)
 
     def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
         """Event is fired when MySQL database is created."""
@@ -346,7 +340,6 @@ class EximCharm(ops.CharmBase):
     def _on_database_relation_removed(self, event) -> None:
         """Event is fired when relation with MySQL is broken."""
         self.unit.status = ops.WaitingStatus("Waiting for database relation")
-        raise SystemExit(0)
 
     def _ensure_tables(self) -> None:
         """Make sure that the required MySQL tables exist."""
@@ -368,15 +361,7 @@ class EximCharm(ops.CharmBase):
         """Store the DKIM private key in the DB for Exim to access."""
         # XXX There's a lot of boilerplate here - should probably have
         # XXX some sort of 'get DB cursor' method.
-        try:
-            connection_args = self._fetch_mysql_relation_data()
-        except SystemExit:
-            # XXX This happens when running in the tests - we should
-            # XXX mock it out, not sure what the typical approach is
-            # XXX here - just check that the method is called? Write
-            # XXX to a dummy DB (like a local/memory sqlite?)?
-            logger.warning("DB is unavailable, so DKIM key cannot be stored for %s", domain)
-            return
+        connection_args = self._fetch_mysql_relation_data()
         db = MySQLdb.connect(
             host=connection_args["db_host"],
             port=connection_args["db_port"],
