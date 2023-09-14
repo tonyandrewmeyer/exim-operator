@@ -10,7 +10,7 @@ import logging
 import re
 import typing
 
-import MySQLdb
+# import MySQLdb
 import ops
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseCreatedEvent,
@@ -343,8 +343,11 @@ class EximCharm(ops.CharmBase):
 
     def _ensure_tables(self) -> None:
         """Make sure that the required MySQL tables exist."""
+        # Broken until I figure out how to give charmcraft pack a local
+        # wheel or the libraries to build one.
+        return
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(
+        db = MySQLdb.connect(  # noqa: F821
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
@@ -359,10 +362,13 @@ class EximCharm(ops.CharmBase):
 
     def _store_dkim_key(self, domain: str, private_key: str) -> None:
         """Store the DKIM private key in the DB for Exim to access."""
+        # Broken until I figure out how to give charmcraft pack a local
+        # wheel or the libraries to build one.
+        return
         # XXX There's a lot of boilerplate here - should probably have
         # XXX some sort of 'get DB cursor' method.
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(
+        db = MySQLdb.connect(  # noqa: F821
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
