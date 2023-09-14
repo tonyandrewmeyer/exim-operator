@@ -30,6 +30,7 @@ class EximCharm(ops.CharmBase):
         self.pebble_cron_service_name = "cron-service"
         self.container = self.unit.get_container("exim")
         self.framework.observe(self.on["exim"].pebble_ready, self._on_pebble_ready)
+        self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.force_queue_action, self._on_force_queue_action)
         self.framework.observe(self.on.get_dkim_keys_action, self._on_get_dkim_keys_action)
@@ -48,8 +49,14 @@ class EximCharm(ops.CharmBase):
                 "/var/log/exim4/paniclog",
             ],
         )
+
+    def _on_install(self, event) -> None:
+        """Handle the install event."""
         # Provide the SMTP interface (after 'expose' is run).
         self.unit.open_port("tcp", 22)
+        # Also provide the submission interface, for outgoing mail.
+        self.unit.open_port("tcp", 587)
+        logger.info("Opened smtp and submission ports for listening.")
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
