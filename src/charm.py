@@ -61,20 +61,14 @@ class EximCharm(ops.CharmBase):
     @property
     def _pebble_layer(self) -> ops.pebble.Layer:
         """Return a dictionary representing a Pebble layer."""
-        command = " ".join(
-            [
-                "/usr/sbin/exim",
-                "-bd",
-                # A 30-minute queue length is the typical default value. It's
-                # not ideal if there's a lot of traffic - but while this could be
-                # exposed as a configuration option, you need to have a lot of
-                # knowledge of the system in order to choose sensible values
-                # (and in particular understand the relationship between the
-                # retry configuration and the queue interval) so it's better
-                # to just stick with a value we choose.
-                "-q 30m",
-            ]
-        )
+        # A 30-minute queue length is the typical default value. It's
+        # not ideal if there's a lot of traffic - but while this could be
+        # exposed as a configuration option, you need to have a lot of
+        # knowledge of the system in order to choose sensible values
+        # (and in particular understand the relationship between the
+        # retry configuration and the queue interval) so it's better
+        # to just stick with a value we choose.
+        command = "/usr/sbin/exim -bd -q 30m"
         pebble_layer: ops.pebble.LayerDict = {
             "summary": "Exim MTA service",
             "description": "Pebble config layer for Exim MTA server",
