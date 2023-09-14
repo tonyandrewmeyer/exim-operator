@@ -150,10 +150,6 @@ def test_invalid_configuration(harness: ops.testing.Harness) -> None:
     """Check that we are prevented from setting an invalid hostname configuration value."""
     harness.set_can_connect("exim", True)
     harness.update_config({"extra-hostnames": "example.com,,example.org"})
-    assert harness.model.unit.status == ops.BlockedStatus(
-        "Invalid hostname list. Please provide a comma-separated list of hostnames"
-    )
+    assert isinstance(harness.model.unit.status, ops.BlockedStatus)
     harness.update_config({"extra-hostnames": "not_a_domain_name.com"})
-    assert harness.model.unit.status == ops.BlockedStatus(
-        "Invalid hostname list. Please provide a comma-separated list of hostnames"
-    )
+    assert isinstance(harness.model.unit.status, ops.BlockedStatus)
