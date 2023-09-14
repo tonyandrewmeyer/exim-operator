@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: ["-l", "100"]
+        args: ["-l", "99"]
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
