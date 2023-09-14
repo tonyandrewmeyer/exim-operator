@@ -68,7 +68,7 @@ class EximCharm(ops.CharmBase):
         # (and in particular understand the relationship between the
         # retry configuration and the queue interval) so it's better
         # to just stick with a value we choose.
-        command = "/usr/sbin/exim -bd -q 30m"
+        command = "/usr/sbin/exim -bs"
         pebble_layer: ops.pebble.LayerDict = {
             "summary": "Exim MTA service",
             "description": "Pebble config layer for Exim MTA server",
