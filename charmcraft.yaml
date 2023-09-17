@@ -1,11 +1,7 @@
 type: charm
 bases:
-  - build-on:
-    - name: ubuntu
-      channel: "22.04"
-    run-on:
-    - name: ubuntu
-      channel: "22.04"
+  - name: ubuntu
+    channel: "22.04"
 # cryptography cannot be built on the Ubuntu base image (needs ffi),
 # so install the binary first, rather than using an alternative base.
 # XXX mysqlclient also has this issue (needs default-libmysqlclient-dev
