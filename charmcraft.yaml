@@ -2,16 +2,40 @@ type: charm
 bases:
   - name: ubuntu
     channel: "22.04"
-# cryptography cannot be built on the Ubuntu base image (needs ffi),
-# so install the binary first, rather than using an alternative base.
-# XXX mysqlclient also has this issue (needs default-libmysqlclient-dev
-# XXX and pkg-config in particular) - but the workaround doesn't work
-# XXX for that case - unclear why this is?
 parts:
+  # This is one way to manipulate the build process. The 'nil' plugin means that
+  # it will just run whatever commands are specified and not do anything else.
+  # Note that the `charm` part should have `after: -mysqlclient-deps` to ensure
+  # that this runs first.
+#  mysqlclient-deps:
+#    plugin: nil
+#    override-build: |
+#      apt update && apt install pkg-config default-libmysqlclient-dev python3-dev build-essential
+  # This would be a way to get a locally built wheel into the build environment.
+  # From there, it could be used in the build process.
+#  mysqlclient-deps:
+#    source: wheels/
+#    plugin: dump
+#    prime:
+#      - mysqlclient-2.2.0-cp310-cp310-linux_x86_64.whl
   charm:
+#    after:
+#      - mysqlclient-deps
     prime:
       - src/schema
       - src/exim.config
+    build-packages:
+      # These are required to build mysqlclient
+      # Note that `libmysqlclient21` must also be installed on the container that
+      # will be importing MySQLdb.
+      - pkg-config
+      - default-libmysqlclient-dev
+      - python3-dev
+      - build-essential
+    # cryptography cannot be built on the Ubuntu base image (needs ffi),
+    # so install the binary first, rather than using an alternative base.
+    # Unlike mysqlclient, there is a Linux wheel available on PyPI, so there's
+    # no need to build from source, just to tell charmcraft that we trust this
+    # binary package.
     charm-binary-python-packages:
       - cryptography
-#      - mysqlclient
