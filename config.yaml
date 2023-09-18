@@ -1,11 +1,4 @@
 options:
-  # This is probably not a config option that's worth exposing, and it would be better to just
-  # configure Exim in a way that's appropriate to any of these uses (and perhaps just allow
-  # specifying if external connections should be accepted).
-  config-type:
-    default: "internet"
-    description: Wrapper for the Debian configuration type; for example - internet, smarthost, local
-    type: string
   primary-hostname:
     default: ""
     description: The primary name of the email server. If not set, Exim will use the system's FQDN.
