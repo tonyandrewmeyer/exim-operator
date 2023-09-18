@@ -9,6 +9,9 @@ bases:
 # XXX for that case - unclear why this is?
 parts:
   charm:
+    prime:
+      - src/schema
+      - src/exim.config
     charm-binary-python-packages:
       - cryptography
 #      - mysqlclient
