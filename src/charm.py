@@ -294,8 +294,6 @@ class EximCharm(ops.CharmBase):
             encryption_algorithm=serialization.NoEncryption(),
         )
         # XXX To-do: adjust the Exim configuration to actually use this.
-        # XXX (should probably forget about using update-exim4.conf and just
-        # XXX have the config as a template in the charm).
         # XXX we also need to make sure that if we no longer require a key
         # XXX we get rid of it (and Exim knows that).
         # XXX Probably we want to be tracking the domains we handle in the DB
