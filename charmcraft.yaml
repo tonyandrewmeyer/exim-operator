@@ -28,6 +28,8 @@ parts:
       # These are required to build mysqlclient
       # Note that `libmysqlclient21` must also be installed on the container that
       # will be importing MySQLdb.
+      # In practice, it would likely be better to use pymysql (pure Python) rather
+      # than have to do all of these workarounds.
       - pkg-config
       - default-libmysqlclient-dev
       - python3-dev

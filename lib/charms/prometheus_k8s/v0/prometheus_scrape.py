@@ -1797,7 +1797,9 @@ class MetricsEndpointAggregator(Object):
 
         relation_names = relation_names or {}
 
-        self._prometheus_relation = relation_names.get("prometheus", "downstream-prometheus-scrape")
+        self._prometheus_relation = relation_names.get(
+            "prometheus", "downstream-prometheus-scrape"
+        )
         self._target_relation = relation_names.get("scrape_target", "prometheus-target")
         self._alert_rules_relation = relation_names.get("alert_rules", "prometheus-rules")
 
@@ -1833,7 +1835,9 @@ class MetricsEndpointAggregator(Object):
         if not self._charm.unit.is_leader():
             return
 
-        jobs = [] + _type_convert_stored(self._stored.jobs)  # list of scrape jobs, one per relation
+        jobs = [] + _type_convert_stored(
+            self._stored.jobs
+        )  # list of scrape jobs, one per relation
         for relation in self.model.relations[self._target_relation]:
             targets = self._get_targets(relation)
             if targets and relation.app:
@@ -2338,7 +2342,9 @@ class CosTool:
             logger.debug("`cos-tool` unavailable. Leaving expression unchanged: %s", expression)
             return expression
         args = [str(self.path), "transform"]
-        args.extend(["--label-matcher={}={}".format(key, value) for key, value in topology.items()])
+        args.extend(
+            ["--label-matcher={}={}".format(key, value) for key, value in topology.items()]
+        )
 
         args.extend(["{}".format(expression)])
         # noinspection PyBroadException

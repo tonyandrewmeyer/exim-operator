@@ -569,7 +569,9 @@ class DataRequires(DataRelation):
                 raise IndexError(f"relation id {relation_id} cannot be accessed")
         else:
             return (
-                all(self._is_resource_created_for_relation(relation) for relation in self.relations)
+                all(
+                    self._is_resource_created_for_relation(relation) for relation in self.relations
+                )
                 if self.relations
                 else False
             )
@@ -1167,7 +1169,9 @@ class KafkaProvides(DataProvides):
         # Emit a topic requested event if the setup key (topic name and optional
         # extra user roles) was added to the relation databag by the application.
         if "topic" in diff.added:
-            getattr(self.on, "topic_requested").emit(event.relation, app=event.app, unit=event.unit)
+            getattr(self.on, "topic_requested").emit(
+                event.relation, app=event.app, unit=event.unit
+            )
 
     def set_topic(self, relation_id: int, topic: str) -> None:
         """Set topic name in the application relation databag.
@@ -1345,7 +1349,9 @@ class OpenSearchProvides(DataProvides):
         # Emit an index requested event if the setup key (index name and optional extra user roles)
         # have been added to the relation databag by the application.
         if "index" in diff.added:
-            getattr(self.on, "index_requested").emit(event.relation, app=event.app, unit=event.unit)
+            getattr(self.on, "index_requested").emit(
+                event.relation, app=event.app, unit=event.unit
+            )
 
     def set_index(self, relation_id: int, index: str) -> None:
         """Set the index in the application relation databag.

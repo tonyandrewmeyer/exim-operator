@@ -2429,7 +2429,9 @@ class CosTool:
             logger.debug("`cos-tool` unavailable. Leaving expression unchanged: %s", expression)
             return expression
         args = [str(self.path), "--format", "logql", "transform"]
-        args.extend(["--label-matcher={}={}".format(key, value) for key, value in topology.items()])
+        args.extend(
+            ["--label-matcher={}={}".format(key, value) for key, value in topology.items()]
+        )
 
         args.extend(["{}".format(expression)])
         # noinspection PyBroadException

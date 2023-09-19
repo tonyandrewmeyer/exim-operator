@@ -7,10 +7,9 @@
 import contextlib
 import logging
 import re
+import subprocess
 import os
 
-# XXX Cannot do this currently because of building issues.
-# import MySQLdb
 import ops
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseCreatedEvent,
@@ -54,11 +53,14 @@ class EximCharm(ops.CharmBase):
 
     def _on_install(self, event) -> None:
         """Handle the install event."""
+        logger.info("Opening smtp and submission ports for listening.")
         # Provide the SMTP interface (after 'expose' is run).
         self.unit.open_port("tcp", 22)
         # Also provide the submission interface, for outgoing mail.
         self.unit.open_port("tcp", 587)
-        logger.info("Opened smtp and submission ports for listening.")
+        logger.info("Installing libmysqlclient with apt")
+        subprocess.call("/usr/bin/apt update")
+        subprocess.call("/usr/bin/apt install libmysqlclient21")
 
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle pebble-ready event."""
@@ -187,7 +189,7 @@ class EximCharm(ops.CharmBase):
             return "unknown"
         mo = re.match(r".*?(\d+\.\d+ #\d+).+", out)
         # `juju status` won't show a version that has a space or a '#' (or '+'),
-        # so adjust it slightly.
+        # so adjust it slightly. (`--format=yaml`` will show all of the version).
         # See https://github.com/juju/juju/blob/13afc56eb85cdfc7953610dd900dd4d62f193841/cmd/juju/status/output_tabular.go#L158  # noqa: E501,W505
         return mo.groups()[0].replace(" #", "-debian-") if mo else "unknown"
 
@@ -228,6 +230,11 @@ class EximCharm(ops.CharmBase):
 
         By default, returns keys for all domains, but can be optionally
         limited to a specific domain."""
+        # This has to be a late import because importing will fail until after
+        # the `install` hook has run (which installs the dynamic libraries that
+        # are required).
+        import MySQLdb
+
         domain = event.params["domain"]
         keys = {}
         query = "SELECT domain, key FROM dkim"
@@ -235,11 +242,8 @@ class EximCharm(ops.CharmBase):
         if domain:
             query += " WHERE domain=%s"
             args.append(domain)
-        # Broken until I figure out how to give charmcraft pack a local
-        # wheel or the libraries to build one.
-        return
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(  # noqa: F821
+        db = MySQLdb.connect(
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
@@ -258,11 +262,13 @@ class EximCharm(ops.CharmBase):
 
     def _check_submission_config(self, domains):
         """Check that Exim is properly configured to handle sending from the specified domains."""
-        # Broken until I figure out how to give charmcraft pack a local
-        # wheel or the libraries to build one.
-        return
+        # This has to be a late import because importing will fail until after
+        # the `install` hook has run (which installs the dynamic libraries that
+        # are required).
+        import MySQLdb
+
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(  # noqa: F821
+        db = MySQLdb.connect(
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
@@ -337,11 +343,13 @@ class EximCharm(ops.CharmBase):
 
     def _ensure_tables(self) -> None:
         """Make sure that the required MySQL tables exist."""
-        # Broken until I figure out how to give charmcraft pack a local
-        # wheel or the libraries to build one.
-        return
+        # This has to be a late import because importing will fail until after
+        # the `install` hook has run (which installs the dynamic libraries that
+        # are required).
+        import MySQLdb
+
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(  # noqa: F821
+        db = MySQLdb.connect(
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
@@ -355,13 +363,15 @@ class EximCharm(ops.CharmBase):
 
     def _store_dkim_key(self, domain: str, private_key: str) -> None:
         """Store the DKIM private key in the DB for Exim to access."""
-        # Broken until I figure out how to give charmcraft pack a local
-        # wheel or the libraries to build one.
-        return
+        # This has to be a late import because importing will fail until after
+        # the `install` hook has run (which installs the dynamic libraries that
+        # are required).
+        import MySQLdb
+
         # XXX There's a lot of boilerplate here - should probably have
         # XXX some sort of 'get DB cursor' method.
         connection_args = self._fetch_mysql_relation_data()
-        db = MySQLdb.connect(  # noqa: F821
+        db = MySQLdb.connect(
             host=connection_args["db_host"],
             port=connection_args["db_port"],
             user=connection_args["db_username"],
