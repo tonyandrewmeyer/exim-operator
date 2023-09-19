@@ -1,7 +1,7 @@
 # Improvements to make
 
  * [x] Properly set up storage for the queue so it isn't lost if the unit/pod vanishes
- * [ ] Relation to a database to load some values (partially done, needs to resolve the mysqlclient issue)
+ * [x] Relation to a database to load some values
  * [ ] More interesting configuration options, e.g. list of dnsbl
  * [ ] Other actions, e.g. manipulating the hints dbs
  * [ ] Observability stack - *partially complete* - need to figure out how to submit metrics to grafana without using a metrics endpoint

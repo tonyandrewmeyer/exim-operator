@@ -136,7 +136,7 @@ class EximCharm(ops.CharmBase):
         self._check_submission_config(
             ([primary_hostname] + other_hostnames) if primary_hostname else other_hostnames
         )
-        with open(os.path.join("src", "exim.config")) as conff:
+        with open(os.path.join("src", "resources", "exim.config")) as conff:
             # options = {}
             # conf = conff.read().format(options)
             conf = conff.read()
